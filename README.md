@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/mascot.png" alt="yankit mascot" width="180" />
+  <img src="https://raw.githubusercontent.com/oktaysabak/yankit/main/assets/mascot.png" alt="yankit mascot" width="180" />
 </p>
 
 <h1 align="center">yankit</h1>
