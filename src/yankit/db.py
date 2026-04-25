@@ -46,7 +46,8 @@ def add_entry(content: str) -> bool:
     Add a new clipboard entry to the database.
 
     Returns True if the entry was added, False if it was a duplicate
-    of the most recent entry.
+    of the most recent entry. If the entry exists but is not the most
+    recent, it will be moved to the top of the history.
     """
     content = content.strip()
     if not content:
@@ -61,6 +62,9 @@ def add_entry(content: str) -> bool:
         last = cursor.fetchone()
         if last and last["content_hash"] == content_hash:
             return False
+
+        # Remove any older entries with the same content to prevent duplicates (bump to top)
+        conn.execute("DELETE FROM clipboard_history WHERE content_hash = ?", (content_hash,))
 
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         conn.execute(
