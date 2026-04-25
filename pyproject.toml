@@ -1,0 +1,39 @@
+[project]
+name = "yankit"
+version = "0.1.0"
+description = "A clipboard history manager for your terminal. Track, search, and manage everything you copy."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "Oktay Sabak" }
+]
+keywords = ["clipboard", "history", "terminal", "cli", "productivity", "yank"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "click>=8.1",
+    "rich>=13.0",
+    "pyperclip>=1.8",
+]
+
+[project.scripts]
+yankit = "yankit.cli:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
