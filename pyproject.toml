@@ -8,7 +8,7 @@ requires-python = ">=3.10"
 authors = [
     { name = "Oktay Sabak" }
 ]
-keywords = ["clipboard", "history", "terminal", "cli", "productivity", "yank"]
+keywords = ["clipboard", "history", "System", "cli", "productivity", "yank", "terminal", "tui"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",

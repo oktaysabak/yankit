@@ -1,10 +1,12 @@
 """Database layer for clipboard history storage using SQLite."""
 
+import contextlib
 import hashlib
 import os
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Generator
 
 
 class ClipboardDB:
@@ -34,12 +36,19 @@ class ClipboardDB:
         with self.get_connection() as conn:
             conn.executescript(self.SCHEMA)
 
-    def get_connection(self) -> sqlite3.Connection:
-        """Get a configured database connection."""
-        conn = sqlite3.connect(str(self.db_path))
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        return conn
+    @contextlib.contextmanager
+    def get_connection(self) -> Generator[sqlite3.Connection, None, None]:
+        """Get a configured database connection that automatically closes."""
+        conn = None
+        try:
+            conn = sqlite3.connect(str(self.db_path))
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL")
+            with conn:
+                yield conn
+        finally:
+            if conn:
+                conn.close()
 
     @staticmethod
     def _hash(content: str) -> str:
@@ -94,6 +103,13 @@ class ClipboardDB:
                 (limit, offset),
             )
             return [dict(row) for row in cursor.fetchall()]
+
+    def get_latest_id(self) -> int:
+        """Get the ID of the most recent entry. Returns 0 if empty."""
+        with self.get_connection() as conn:
+            cursor = conn.execute("SELECT MAX(id) FROM clipboard_history")
+            result = cursor.fetchone()
+            return result[0] if result and result[0] is not None else 0
 
     def search_entries(self, query: str, limit: int = 50) -> list[dict]:
         """Search clipboard history for entries containing the query string."""

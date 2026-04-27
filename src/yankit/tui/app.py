@@ -145,9 +145,10 @@ class YankitApp(App):
         else:
             notification.remove_class("visible")
 
-        if not is_running and config.auto_start_watcher:
+        if not is_running and config.auto_start_watcher and not getattr(self, "_watcher_autostart_attempted", False):
+            self._watcher_autostart_attempted = True
             try:
-                # Attempt to start the watcher in background
+                # Attempt to start the watcher in background once
                 subprocess.Popen(
                     ["yankit", "watch", "-d"],
                     stdout=subprocess.DEVNULL,
@@ -178,11 +179,10 @@ class YankitApp(App):
         # skip if a screen is on top (like delete/quit)
         pass
 
-        latest = db.get_entries(limit=1)
-        if not latest:
+        db_latest_id = db.get_latest_id()
+        if db_latest_id == 0:
             return
 
-        db_latest_id = latest[0]["id"]
 
         if not self.entries or db_latest_id > self.entries[0]["id"]:
             # Auto-refresh and maintain live feed
