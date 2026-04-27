@@ -30,6 +30,19 @@ class EntryTable(DataTable):
     def action_delete_entry(self) -> None:
         self.app.action_delete_entry()
 
+    def focus_by_id(self, entry_id: int) -> bool:
+        """Find and focus the row with the given entry ID. Returns True if found."""
+        for row_index in range(self.row_count):
+            try:
+                # Row ID is at column 0
+                cell_value = self.get_cell_at((row_index, 0))
+                if str(cell_value) == str(entry_id):
+                    self.move_cursor(row=row_index)
+                    return True
+            except Exception:
+                continue
+        return False
+
 
 class DetailLog(TextArea):
     """TextArea for the detail panel that supports text selection and partial copying."""

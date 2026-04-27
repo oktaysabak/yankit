@@ -88,6 +88,10 @@ class YankitApp(App):
         self.query_one(Header).can_focus = False
         self.query_one(Footer).can_focus = False
 
+        if config.always_show_detail:
+            detail = self.query_one(DetailPanel)
+            detail.add_class("visible")
+
         if self._initial_query:
             self.current_query = self._initial_query
             search_bar = self.query_one("#search-bar")
@@ -97,7 +101,11 @@ class YankitApp(App):
             self._load_search_results(self._initial_query)
         else:
             self._load_entries()
-            self.query_one("#entry-table", EntryTable).focus()
+            table = self.query_one("#entry-table", EntryTable)
+            table.focus()
+            # If always_show_detail is true, show the first entry immediately
+            if config.always_show_detail and self.entries:
+                self.query_one(DetailPanel).show_entry(self.entries[0])
 
         # Check for new entries every second for live updates
         self.set_interval(1.0, self._check_new_entries)
@@ -136,10 +144,10 @@ class YankitApp(App):
             return text[:max_length] + "…"
         return text
 
-    def _load_entries(self) -> None:
+    def _load_entries(self, target_id: int | None = None) -> None:
         """Load recent entries into the table."""
         self.entries = db.get_entries(limit=100)
-        self._populate_table(self.entries)
+        self._populate_table(self.entries, target_id=target_id)
         self._update_capacity()
 
     def _update_capacity(self) -> None:
@@ -148,21 +156,20 @@ class YankitApp(App):
         status = self.query_one(StatusBar)
         status.update_capacity(total_count, config.max_entries)
 
-    def _load_search_results(self, query: str) -> None:
+    def _load_search_results(self, query: str, target_id: int | None = None) -> None:
         """Load search results into the table."""
         if not query.strip():
-            self._load_entries()
+            self._load_entries(target_id=target_id)
             return
         self.entries = db.search_entries(query, limit=100)
-        self._populate_table(self.entries)
+        self._populate_table(self.entries, target_id=target_id)
 
-    def _populate_table(self, entries: list[dict]) -> None:
+    def _populate_table(self, entries: list[dict], target_id: int | None = None) -> None:
         """Clear and repopulate the data table."""
         table = self.query_one("#entry-table", EntryTable)
         table.clear()
 
         if not entries:
-            table.clear()
             self._show_status("No entries found.", "dim")
             return
 
@@ -170,11 +177,14 @@ class YankitApp(App):
             table.add_row(
                 str(entry["id"]),
                 self._truncate(entry["content"]),
-                str(entry["char_count"]),
+                str(entry.get("char_count", 0)),
                 str(entry["word_count"]),
                 entry["created_at"],
                 key=str(entry["id"]),
             )
+
+        if target_id is not None:
+            table.focus_by_id(target_id)
 
         self._show_status(
             "↑↓ Navigate  │  c Copy  │  Enter/→ Detail  │  d Delete  │  s Search  │  q Quit"
@@ -272,9 +282,13 @@ class YankitApp(App):
         """Close detail panel or search bar. If both are closed, request quit."""
         detail = self.query_one(DetailPanel)
         if detail.is_visible:
-            detail.hide_panel()
-            self.action_refresh()  # Refresh to show any new copies made in detail
-            self.query_one("#entry-table", EntryTable).focus()
+            if config.always_show_detail:
+                # In persistent mode, back just returns focus to the list
+                self.query_one("#entry-table", EntryTable).focus()
+            else:
+                detail.hide_panel()
+                self.action_refresh()  # Refresh to show any new copies made in detail
+                self.query_one("#entry-table", EntryTable).focus()
             return
 
         search_bar = self.query_one("#search-bar")
@@ -351,9 +365,13 @@ class YankitApp(App):
                     "↑↓ Navigate  │  c Copy  │  Enter/→ Detail  │  d Delete  │  s Search  │  q Quit"
                 )
             else:
-                detail.hide_panel()
-                self.action_refresh()  # Refresh to show any new copies made in detail
-                self.query_one("#entry-table", EntryTable).focus()
+                if config.always_show_detail:
+                    # In persistent mode, don't hide, just focus table
+                    self.query_one("#entry-table", EntryTable).focus()
+                else:
+                    detail.hide_panel()
+                    self.action_refresh()  # Refresh to show any new copies made in detail
+                    self.query_one("#entry-table", EntryTable).focus()
 
     def action_delete_entry(self) -> None:
         """Prompt to delete the selected entry."""
@@ -372,9 +390,15 @@ class YankitApp(App):
         self.push_screen(InlineDeleteScreen(entry["id"]), check_delete)
 
     def action_refresh(self) -> None:
-        """Reload entries from the database."""
+        """Reload entries from the database while maintaining cursor position."""
+        # Capture current selection ID for cursor persistence
+        current_id = None
+        entry = self._get_selected_entry()
+        if entry:
+            current_id = entry["id"]
+
         if self.current_query:
-            self._load_search_results(self.current_query)
+            self._load_search_results(self.current_query, target_id=current_id)
         else:
-            self._load_entries()
+            self._load_entries(target_id=current_id)
         self._show_status("✓ Refreshed", "green")

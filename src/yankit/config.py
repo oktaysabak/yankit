@@ -19,6 +19,7 @@ class ConfigManager:
             "max_entries": 10000,
             "auto_prune_days": 30,
             "enable_auto_prune": True,
+            "always_show_detail": False,
         }
 
     def _load(self) -> dict:
@@ -71,6 +72,8 @@ class ConfigManager:
     def enable_auto_prune(self) -> bool:
         # Convert to bool explicitly in case of bad json
         return bool(self.get("enable_auto_prune", True))
-
+    @property
+    def always_show_detail(self) -> bool:
+        return bool(self.get("always_show_detail", False))
 
 config = ConfigManager(DATA_DIR / "config.json")
