@@ -84,23 +84,6 @@ def status():
         console.print("\n  [dim]○[/] Watcher is [bold]not running[/]\n")
 
 
-@cli.command("list")
-def list_cmd():
-    """Open the interactive TUI (Alias for running `yankit` with no commands)."""
-    from yankit.tui import YankitApp
-
-    app = YankitApp()
-    app.run()
-
-
-@cli.command()
-@click.argument("query")
-def search(query):
-    """Open the interactive TUI with a pre-filled search query."""
-    from yankit.tui import YankitApp
-
-    app = YankitApp(initial_query=query)
-    app.run()
 
 
 @cli.command()

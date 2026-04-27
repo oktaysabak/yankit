@@ -14,8 +14,6 @@
 - **Interactive TUI** — Browse, search, and copy entries with keyboard navigation
 - **Partial Selection** — Select and copy specific parts of text in the detail view
 - **Watch** — Monitor your clipboard in real-time (foreground or daemon mode)
-- **List** — View your clipboard history with timestamps and word counts
-- **Search** — Find anything you've copied with highlighted results
 - **Stats** — See statistics about your clipboard usage
 - **Copy back** — Re-copy any past entry back to your clipboard
 - **Export** — Export your clipboard history as JSON
@@ -56,17 +54,11 @@ yankit watch --daemon
 
 ### 2. Browse with the Interactive TUI
 
-The primary way to use yankit is through its interactive interface. Simply running `yankit` without any arguments will launch the TUI, where you can navigate your history, preview long texts, and copy entries back to your clipboard.
+The primary way to use yankit is through its interactive interface. Simply running `yankit` without any arguments will launch the TUI, where you can navigate your history, preview long texts, and search through everything you've copied.
 
 ```bash
 # Launch the interactive browser
 yankit
-
-# Launch the interactive browser with a pre-filled search query
-yankit search "password"
-
-# (Optional) Alias for simply running `yankit`
-yankit list
 ```
 
 **Keybindings:**
@@ -92,20 +84,42 @@ yankit status
 yankit stop
 ```
 
-### 4. View statistics
+### 4. Configuration
+
+You can view and update your configuration directly from the CLI.
+
+```bash
+# View current config
+yankit config view
+
+# Update settings
+yankit config set --max-entries 5000 --always-show-detail True
+```
+
+#### Available Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `max_entries` | `10000` | Maximum number of entries to keep in the database. |
+| `auto_prune_days` | `30` | Number of days after which entries are automatically deleted. |
+| `enable_auto_prune` | `True` | Whether to automatically prune old entries when the watcher is running. |
+| `always_show_detail` | `False` | If True, the detail panel stays open in the TUI even when no entry is selected. |
+| `auto_start_watcher` | `True` | Automatically start the background watcher when you open the TUI if it's not running. |
+
+### 5. View statistics
 
 ```bash
 yankit stats
 ```
 
-### 5. Export history
+### 6. Export history
 
 ```bash
 yankit export
 yankit export --output history.json
 ```
 
-### 6. Cleanup
+### 7. Cleanup
 
 ```bash
 # Delete entries older than 30 days
@@ -117,7 +131,7 @@ yankit clear
 
 ## How It Works
 
-yankit polls your system clipboard every 0.5 seconds and stores new entries in a local SQLite database. It deduplicates consecutive copies and enforces a configurable maximum entry limit (default: 10,000) to prevent unbounded growth.
+yankit polls your system clipboard every 0.5 seconds and stores new entries in a local SQLite database. It deduplicates consecutive copies and enforces a configurable maximum entry limit to prevent unbounded growth.
 
 ```
 yankit watch ──► polls clipboard ──► new content? ──► store in SQLite
@@ -127,14 +141,7 @@ yankit watch ──► polls clipboard ──► new content? ──► store in
 
 ### Database Location
 
-All data is stored locally at `~/.yankit/history.db`. No data is ever sent anywhere.
-
-### Database Size Management
-
-- **Max entries limit**: `yankit watch --max-entries 5000`
-- **Age-based pruning**: `yankit prune --older-than 30` (days)
-- **Full reset**: `yankit clear`
-- **Monitor size**: `yankit stats` shows current DB size
+All data is stored locally at `~/.yankit/history.db`. Your configuration is at `~/.yankit/config.json`. No data ever leaves your machine.
 
 ## Platform Support
 
