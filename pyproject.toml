@@ -1,6 +1,6 @@
 [project]
 name = "yankit"
-version = "0.1.2"
+version = "0.2.0"
 description = "A clipboard history manager for your terminal. Track, search, and manage everything you copy."
 readme = "README.md"
 license = "MIT"
@@ -23,6 +23,7 @@ dependencies = [
     "click>=8.1",
     "rich>=13.0",
     "pyperclip>=1.8",
+    "textual>=0.80",
 ]
 
 [project.scripts]

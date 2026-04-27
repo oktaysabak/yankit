@@ -6,37 +6,32 @@ import signal
 
 import click
 from rich.console import Console
+from rich.panel import Panel
 
 from yankit import __version__
-from yankit.clipboard import set_clipboard
-from yankit.db import (
-    delete_all,
-    get_entries,
-    get_entry_by_id,
-    get_stats,
-    get_today_entries,
-    prune_older_than,
-    read_pid,
-    search_entries,
-)
-from yankit.display import (
-    display_entries,
-    display_entry_detail,
-    display_search_results,
-    display_stats,
-)
+from yankit.config import config
+from yankit.db import db, pid_manager
 from yankit.watcher import watch
 
 console = Console()
 
 
-@click.group()
+@click.group(invoke_without_command=True)
+@click.pass_context
 @click.version_option(version=__version__, prog_name="yankit")
-def cli():
+def cli(ctx):
     """📋 yankit — A clipboard history manager for your terminal.
 
     Track, search, and manage everything you copy.
+
+    If run without any commands, yankit will open the interactive
+    Terminal User Interface (TUI) to browse your clipboard history.
     """
+    if ctx.invoked_subcommand is None:
+        from yankit.tui import YankitApp
+
+        app = YankitApp()
+        app.run()
 
 
 @cli.command("watch")
@@ -54,23 +49,15 @@ def cli():
     is_flag=True,
     help="Run in background (Unix only).",
 )
-@click.option(
-    "--max-entries",
-    "-m",
-    default=10000,
-    type=int,
-    help="Maximum entries to keep.",
-    show_default=True,
-)
-def watch_cmd(interval, daemon, max_entries):
+def watch_cmd(interval, daemon):
     """Start watching the clipboard for changes."""
-    watch(interval=interval, daemon=daemon, max_entries=max_entries)
+    watch(interval=interval, daemon=daemon)
 
 
 @cli.command()
 def stop():
     """Stop the background watcher daemon."""
-    pid = read_pid()
+    pid = pid_manager.read_pid()
     if pid is None:
         console.print("\n  [dim]No running watcher found.[/]\n")
         return
@@ -87,7 +74,7 @@ def stop():
 @cli.command()
 def status():
     """Check if the watcher daemon is running."""
-    pid = read_pid()
+    pid = pid_manager.read_pid()
     if pid:
         console.print(f"\n  [green]●[/] Watcher is [bold green]running[/] (PID: {pid})\n")
     else:
@@ -95,85 +82,59 @@ def status():
 
 
 @cli.command("list")
-@click.option(
-    "--limit",
-    "-n",
-    default=20,
-    help="Number of entries to show.",
-    show_default=True,
-)
-@click.option(
-    "--today",
-    "-t",
-    is_flag=True,
-    help="Show only today's entries.",
-)
-@click.option(
-    "--offset",
-    "-o",
-    default=0,
-    help="Offset for pagination.",
-    show_default=True,
-)
-def list_cmd(limit, today, offset):
-    """List recent clipboard entries."""
-    if today:
-        entries = get_today_entries()
-        display_entries(entries, title="Today's Clipboard History")
-    else:
-        entries = get_entries(limit=limit, offset=offset)
-        display_entries(entries)
+def list_cmd():
+    """Open the interactive TUI (Alias for running `yankit` with no commands)."""
+    from yankit.tui import YankitApp
+
+    app = YankitApp()
+    app.run()
 
 
 @cli.command()
 @click.argument("query")
-@click.option(
-    "--limit",
-    "-n",
-    default=50,
-    help="Max results to show.",
-    show_default=True,
-)
-def search(query, limit):
-    """Search through clipboard history."""
-    entries = search_entries(query, limit=limit)
-    display_search_results(entries, query)
+def search(query):
+    """Open the interactive TUI with a pre-filled search query."""
+    from yankit.tui import YankitApp
+
+    app = YankitApp(initial_query=query)
+    app.run()
 
 
 @cli.command()
 def stats():
     """Show clipboard history statistics."""
-    statistics = get_stats()
-    display_stats(statistics)
+    stats_data = db.get_stats()
 
+    if stats_data["total_entries"] == 0:
+        console.print("\n  [dim]No clipboard history yet. Run [bold]yankit watch[/] to start.[/]\n")
+        return
 
-@cli.command()
-@click.argument("entry_id", type=int)
-def copy(entry_id):
-    """Copy a history entry back to the clipboard by its ID."""
-    entry = get_entry_by_id(entry_id)
-    if entry is None:
-        console.print(f"\n  [red]Error:[/] Entry #{entry_id} not found.\n")
-        raise SystemExit(1)
+    lines = [
+        f"[bold cyan]Total Entries[/]      {stats_data['total_entries']:,}",
+        f"[bold cyan]Today's Entries[/]    {stats_data['today_entries']:,}",
+        "",
+        f"[bold magenta]Total Chars Copied[/] {stats_data['total_chars']:,}",
+        f"[bold magenta]Avg Chars/Entry[/]    {stats_data['avg_chars']}",
+        f"[bold magenta]Avg Words/Entry[/]    {stats_data['avg_words']}",
+        "",
+        f"[bold yellow]Longest Entry[/]      {stats_data['longest_entry']:,} chars",
+        f"[bold yellow]Shortest Entry[/]     {stats_data['shortest_entry']:,} chars",
+        f"[bold yellow]Database Size[/]      {stats_data['db_size']}",
+        "",
+        f"[dim]First entry:[/] {stats_data['first_entry'] or 'N/A'}",
+        f"[dim]Last entry:[/]  {stats_data['last_entry'] or 'N/A'}",
+    ]
 
-    if set_clipboard(entry["content"]):
-        display_entry_detail(entry)
-        console.print(f"  [green]✓[/] Copied entry #{entry_id} back to clipboard.\n")
-    else:
-        console.print("\n  [red]Error:[/] Failed to copy to clipboard.\n")
-        raise SystemExit(1)
+    panel = Panel(
+        "\n".join(lines),
+        title="[bold]📋 Clipboard Statistics[/]",
+        border_style="green",
+        padding=(1, 3),
+    )
 
-
-@cli.command()
-@click.argument("entry_id", type=int)
-def show(entry_id):
-    """Show the full content of a clipboard entry."""
-    entry = get_entry_by_id(entry_id)
-    if entry is None:
-        console.print(f"\n  [red]Error:[/] Entry #{entry_id} not found.\n")
-        raise SystemExit(1)
-
-    display_entry_detail(entry)
+    console.print()
+    console.print(panel)
+    console.print()
 
 
 @cli.command()
@@ -187,7 +148,7 @@ def show(entry_id):
 )
 def prune(older_than):
     """Delete old clipboard entries."""
-    count = prune_older_than(older_than)
+    count = db.prune_older_than(older_than)
     if count > 0:
         console.print(
             f"\n  [green]✓[/] Pruned [bold]{count:,}[/] entries older than {older_than} days.\n"
@@ -202,7 +163,7 @@ def prune(older_than):
 )
 def clear():
     """Delete all clipboard history."""
-    count = delete_all()
+    count = db.delete_all()
     console.print(f"\n  [green]✓[/] Deleted [bold]{count:,}[/] entries.\n")
 
 
@@ -223,7 +184,7 @@ def clear():
 )
 def export(limit, output):
     """Export clipboard history as JSON."""
-    entries = get_entries(limit=limit if limit > 0 else 999_999)
+    entries = db.get_entries(limit=limit if limit > 0 else 999_999)
     data = {"version": __version__, "count": len(entries), "entries": entries}
     json_str = json.dumps(data, indent=2, default=str)
 
@@ -233,3 +194,35 @@ def export(limit, output):
         console.print(f"\n  [green]✓[/] Exported {len(entries)} entries to [bold]{output}[/]\n")
     else:
         click.echo(json_str)
+
+
+@cli.group("config")
+def config_group():
+    """Manage yankit configuration."""
+    pass
+
+
+@config_group.command("view")
+def config_view():
+    """View current configuration."""
+    console.print("\n[bold]⚙️  Current Configuration:[/]")
+    data = config.get_all()
+    lines = [f"  [cyan]{k}[/]: {v}" for k, v in data.items()]
+    console.print("\n".join(lines) + "\n")
+
+
+@config_group.command("set")
+@click.option("--max-entries", type=int, help="Maximum entries to keep.")
+@click.option("--auto-prune-days", type=int, help="Days after which to prune entries.")
+@click.option("--enable-auto-prune", type=bool, help="Enable automatic pruning.")
+def config_set(max_entries, auto_prune_days, enable_auto_prune):
+    """Update configuration values."""
+    if max_entries is not None:
+        config.set("max_entries", max_entries)
+    if auto_prune_days is not None:
+        config.set("auto_prune_days", auto_prune_days)
+    if enable_auto_prune is not None:
+        config.set("enable_auto_prune", enable_auto_prune)
+
+    console.print("\n  [green]✓[/] Configuration updated successfully.")
+    config_view.callback()

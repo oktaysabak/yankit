@@ -11,6 +11,7 @@
 
 ## Features
 
+- **Interactive TUI** — Browse, search, and copy entries with keyboard navigation
 - **Watch** — Monitor your clipboard in real-time (foreground or daemon mode)
 - **List** — View your clipboard history with timestamps and word counts
 - **Search** — Find anything you've copied with highlighted results
@@ -52,54 +53,55 @@ yankit watch
 yankit watch --daemon
 ```
 
-### 2. Check watcher status / stop it
+### 2. Browse with the Interactive TUI
+
+The primary way to use yankit is through its interactive interface. Simply running `yankit` without any arguments will launch the TUI, where you can navigate your history, preview long texts, and copy entries back to your clipboard.
+
+```bash
+# Launch the interactive browser
+yankit
+
+# Launch the interactive browser with a pre-filled search query
+yankit search "password"
+
+# (Optional) Alias for simply running `yankit`
+yankit list
+```
+
+**Keybindings:**
+
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` | Navigate between entries |
+| `c` | Copy highlighted entry to clipboard |
+| `Enter` / `→` | Open detail panel (full content, scrollable) |
+| `←` / `Escape` | Close detail panel / search |
+| `s` | Open search |
+| `d` | Delete highlighted entry |
+| `r` | Refresh entries |
+| `q` | Quit |
+
+### 3. Check watcher status / stop it
 
 ```bash
 yankit status
 yankit stop
 ```
 
-### 3. View your clipboard history
-
-```bash
-yankit list
-yankit list --today
-yankit list --limit 50
-```
-
-### 4. Search through history
-
-```bash
-yankit search "password"
-yankit search "https://"
-```
-
-### 5. View statistics
+### 4. View statistics
 
 ```bash
 yankit stats
 ```
 
-### 6. Re-copy an old entry
-
-```bash
-yankit copy 42
-```
-
-### 7. Show full content of an entry
-
-```bash
-yankit show 42
-```
-
-### 8. Export history
+### 5. Export history
 
 ```bash
 yankit export
 yankit export --output history.json
 ```
 
-### 9. Cleanup
+### 6. Cleanup
 
 ```bash
 # Delete entries older than 30 days
