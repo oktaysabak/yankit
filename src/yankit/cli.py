@@ -25,7 +25,10 @@ def cli(ctx):
     Track, search, and manage everything you copy.
 
     If run without any commands, yankit will open the interactive
-    Terminal User Interface (TUI) to browse your clipboard history.
+    Terminal User Interface (TUI). If the watcher is not running, 
+    the TUI will start it automatically in the background.
+
+    Use 'yankit stop' to terminate the background watcher.
     """
     if ctx.invoked_subcommand is None:
         from yankit.tui import YankitApp
@@ -215,7 +218,15 @@ def config_view():
 @click.option("--max-entries", type=int, help="Maximum entries to keep.")
 @click.option("--auto-prune-days", type=int, help="Days after which to prune entries.")
 @click.option("--enable-auto-prune", type=bool, help="Enable automatic pruning.")
-def config_set(max_entries, auto_prune_days, enable_auto_prune):
+@click.option("--always-show-detail", type=bool, help="Always keep the detail panel open.")
+@click.option(
+    "--auto-start-watcher",
+    type=bool,
+    help="Automatically start watcher when TUI opens.",
+)
+def config_set(
+    max_entries, auto_prune_days, enable_auto_prune, always_show_detail, auto_start_watcher
+):
     """Update configuration values."""
     if max_entries is not None:
         config.set("max_entries", max_entries)
@@ -223,6 +234,10 @@ def config_set(max_entries, auto_prune_days, enable_auto_prune):
         config.set("auto_prune_days", auto_prune_days)
     if enable_auto_prune is not None:
         config.set("enable_auto_prune", enable_auto_prune)
+    if always_show_detail is not None:
+        config.set("always_show_detail", always_show_detail)
+    if auto_start_watcher is not None:
+        config.set("auto_start_watcher", auto_start_watcher)
 
     console.print("\n  [green]✓[/] Configuration updated successfully.")
     config_view.callback()

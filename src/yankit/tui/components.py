@@ -108,6 +108,21 @@ class StatusBar(Horizontal):
         color: $text;
     }
 
+    #watcher-status {
+        width: auto;
+        padding-left: 2;
+        padding-right: 2;
+    }
+
+    #watcher-status.online {
+        color: green;
+    }
+
+    #watcher-status.offline {
+        color: red;
+        text-style: bold;
+    }
+
     #status-text {
         width: 1fr;
         content-align: center middle;
@@ -130,15 +145,30 @@ class StatusBar(Horizontal):
         self._initial_text = initial_text
 
     def compose(self) -> ComposeResult:
+        watcher_status = Static("● Watcher: Off", id="watcher-status")
         status_text = Static(self._initial_text, id="status-text")
         capacity_text = Static("", id="capacity-text")
         # Explicitly disable focus for status bar components
+        watcher_status.can_focus = False
         status_text.can_focus = False
         capacity_text.can_focus = False
         self.can_focus = False
 
+        yield watcher_status
         yield status_text
         yield capacity_text
+
+    def update_watcher(self, is_running: bool) -> None:
+        """Update the watcher status indicator."""
+        status = self.query_one("#watcher-status", Static)
+        if is_running:
+            status.update("● Watcher: On")
+            status.add_class("online")
+            status.remove_class("offline")
+        else:
+            status.update("● Watcher: Off")
+            status.add_class("offline")
+            status.remove_class("online")
 
     def update(self, text: str) -> None:
         """Update the main status text."""
@@ -203,6 +233,11 @@ class DetailPanel(Vertical):
         log.read_only = True
         log.show_line_numbers = False
         yield log
+
+    def clear(self) -> None:
+        """Clear the content and show empty message."""
+        self.query_one("#detail-header", Static).update("Entry Details")
+        self.query_one("#detail-content", DetailLog).text = ""
 
     def show_entry(self, entry: dict) -> None:
         """Populate and show the detail panel."""

@@ -20,6 +20,7 @@ class ConfigManager:
             "auto_prune_days": 30,
             "enable_auto_prune": True,
             "always_show_detail": False,
+            "auto_start_watcher": True,
         }
 
     def _load(self) -> dict:
@@ -75,5 +76,9 @@ class ConfigManager:
     @property
     def always_show_detail(self) -> bool:
         return bool(self.get("always_show_detail", False))
+
+    @property
+    def auto_start_watcher(self) -> bool:
+        return bool(self.get("auto_start_watcher", True))
 
 config = ConfigManager(DATA_DIR / "config.json")

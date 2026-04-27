@@ -1,5 +1,7 @@
 """Main application module for the Yankit TUI."""
 
+import subprocess
+
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
@@ -8,7 +10,7 @@ from textual.widgets import DataTable, Footer, Header, Input
 
 from yankit.clipboard import set_clipboard
 from yankit.config import config
-from yankit.db import db
+from yankit.db import db, pid_manager
 from yankit.tui.components import DetailPanel, EntryTable, StatusBar
 from yankit.tui.screens import InlineDeleteScreen, InlineQuitScreen
 
@@ -110,8 +112,44 @@ class YankitApp(App):
         # Check for new entries every second for live updates
         self.set_interval(1.0, self._check_new_entries)
 
+        # Initial watcher status check
+        self._check_watcher()
+
+    def _check_watcher(self) -> None:
+        """Check if the clipboard watcher is running and update status bar."""
+        is_running = pid_manager.read_pid() is not None
+        status_bar = self.query_one(StatusBar)
+        status_bar.update_watcher(is_running)
+
+        if not is_running:
+            if config.auto_start_watcher:
+                try:
+                    # Attempt to start the watcher in background
+                    subprocess.Popen(
+                        ["yankit", "watch", "-d"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        start_new_session=True,
+                    )
+                    self._show_status(
+                        "✓ Watcher started in background. Use 'yankit stop' to stop it.",
+                        "green",
+                    )
+                    # Update UI immediately
+                    status_bar.update_watcher(True)
+                except Exception:
+                    self._show_status(
+                        "⚠ Watcher is NOT running! Start it with: yankit watch -d",
+                        "red bold",
+                    )
+            else:
+                self._show_status(
+                    "⚠ Watcher is NOT running! Start it with: yankit watch -d", "red bold"
+                )
+
     def _check_new_entries(self) -> None:
         """Background task to refresh the table if new entries are found in DB."""
+        self._check_watcher()
         if self.current_query or len(self.screen_stack) > 1:
             return
 
@@ -170,7 +208,12 @@ class YankitApp(App):
         table.clear()
 
         if not entries:
-            self._show_status("No entries found.", "dim")
+            self.query_one(DetailPanel).clear()
+            if not config.always_show_detail:
+                self.query_one(DetailPanel).hide_panel()
+
+            table.add_row("-", "Clipboard history is empty...", "-", "-", "-")
+            self._show_status("Clipboard history is empty.", "dim")
             return
 
         for entry in entries:

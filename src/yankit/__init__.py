@@ -1,3 +1,3 @@
 """yankit — A clipboard history manager for your terminal."""
 
-__version__ = "0.3.6"
+__version__ = "0.3.8"
