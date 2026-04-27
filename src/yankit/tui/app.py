@@ -6,7 +6,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
-from textual.widgets import DataTable, Footer, Header, Input
+from textual.widgets import DataTable, Footer, Header, Input, Static
 
 from yankit.clipboard import set_clipboard
 from yankit.config import config
@@ -32,13 +32,32 @@ class YankitApp(App):
     #main-area {
         height: 1fr;
     }
+
+    #notification-bar {
+        width: 100%;
+        height: 0;
+        overflow: hidden;
+        background: $error;
+        color: auto;
+        content-align: center middle;
+        text-style: bold;
+        transition: height 0.2s;
+    }
+
+    #notification-bar.visible {
+        height: 1;
+    }
     """
 
     BINDINGS = [
-        Binding("q", "request_quit", "Quit"),
+        Binding("up,down", "", "Navigate", show=True),
+        Binding("c", "copy_entry", "Copy"),
+        Binding("enter", "show_detail", "Detail"),
+        Binding("d", "request_delete", "Delete"),
         Binding("s", "search", "Search"),
-        Binding("escape", "back", "Back"),
         Binding("r", "refresh", "Refresh"),
+        Binding("escape", "back", "Back"),
+        Binding("q", "request_quit", "Quit"),
         Binding("ctrl+right", "focus_detail", "Focus Detail", show=False, priority=True),
         Binding("ctrl+left", "focus_list", "Focus List", show=False, priority=True),
         Binding("alt+right", "focus_detail", show=False, priority=True),
@@ -56,16 +75,13 @@ class YankitApp(App):
 
     def compose(self) -> ComposeResult:
         yield Header()
+        yield Static("", id="notification-bar")
         with Vertical(id="search-bar"):
             yield Input(placeholder="Search clipboard history…", id="search-input")
         with Horizontal(id="main-area"):
             yield EntryTable(id="entry-table", cursor_type="row", zebra_stripes=True)
             yield DetailPanel()
-        yield StatusBar(
-            initial_text=(
-                "↑↓ Navigate  │  c Copy  │  Enter/→ Detail  │  d Delete  │  s Search  │  q Quit"
-            )
-        )
+        yield StatusBar()
         yield Footer()
 
     def on_key(self, event) -> None:
@@ -121,31 +137,32 @@ class YankitApp(App):
         status_bar = self.query_one(StatusBar)
         status_bar.update_watcher(is_running)
 
+        notification = self.query_one("#notification-bar", Static)
         if not is_running:
-            if config.auto_start_watcher:
-                try:
-                    # Attempt to start the watcher in background
-                    subprocess.Popen(
-                        ["yankit", "watch", "-d"],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                        start_new_session=True,
-                    )
-                    self._show_status(
-                        "✓ Watcher started in background. Use 'yankit stop' to stop it.",
-                        "green",
-                    )
-                    # Update UI immediately
-                    status_bar.update_watcher(True)
-                except Exception:
-                    self._show_status(
-                        "⚠ Watcher is NOT running! Start it with: yankit watch -d",
-                        "red bold",
-                    )
-            else:
-                self._show_status(
-                    "⚠ Watcher is NOT running! Start it with: yankit watch -d", "red bold"
+            msg = "⚠ Watcher NOT running! New copies will NOT be saved. Start: yankit watch -d"
+            notification.update(msg)
+            notification.add_class("visible")
+        else:
+            notification.remove_class("visible")
+
+        if not is_running and config.auto_start_watcher:
+            try:
+                # Attempt to start the watcher in background
+                subprocess.Popen(
+                    ["yankit", "watch", "-d"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,
                 )
+                self._show_status(
+                    "✓ Watcher started in background. Use 'yankit stop' to stop it.",
+                    "green",
+                )
+                # Update UI immediately
+                status_bar.update_watcher(True)
+                notification.remove_class("visible")
+            except Exception:
+                pass
 
     def _check_new_entries(self) -> None:
         """Background task to refresh the table if new entries are found in DB."""
@@ -228,10 +245,6 @@ class YankitApp(App):
 
         if target_id is not None:
             table.focus_by_id(target_id)
-
-        self._show_status(
-            "↑↓ Navigate  │  c Copy  │  Enter/→ Detail  │  d Delete  │  s Search  │  q Quit"
-        )
 
     def _get_selected_entry(self) -> dict | None:
         """Get the entry dict for the currently highlighted row."""
@@ -384,7 +397,7 @@ class YankitApp(App):
             log = detail.query_one("#detail-content", DetailLog)
             log.focus()
             self._show_status(
-                "Focused detail panel. Use arrow keys to scroll. Press ← to go back.", "cyan"
+                "Focused detail panel. Use arrow keys to scroll. Press alt + ← to go back.", "cyan"
             )
         else:
             entry = self._get_selected_entry()

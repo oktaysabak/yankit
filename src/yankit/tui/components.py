@@ -101,11 +101,15 @@ class StatusBar(Horizontal):
 
     DEFAULT_CSS = """
     StatusBar {
-        dock: bottom;
+        layout: horizontal;
         width: 100%;
         height: 1;
-        background: $surface;
+        background: $panel;
         color: $text;
+    }
+
+    #status-spacer {
+        width: 1fr;
     }
 
     #watcher-status {
@@ -145,18 +149,12 @@ class StatusBar(Horizontal):
         self._initial_text = initial_text
 
     def compose(self) -> ComposeResult:
-        watcher_status = Static("● Watcher: Off", id="watcher-status")
-        status_text = Static(self._initial_text, id="status-text")
-        capacity_text = Static("", id="capacity-text")
-        # Explicitly disable focus for status bar components
-        watcher_status.can_focus = False
-        status_text.can_focus = False
-        capacity_text.can_focus = False
-        self.can_focus = False
+        yield Static("● Watcher: Off", id="watcher-status")
+        yield Static(self._initial_text, id="status-text")
+        yield Static("", id="capacity-text")
 
-        yield watcher_status
-        yield status_text
-        yield capacity_text
+    def _get_status_spacer(self) -> Static:
+        return self.query_one("#status-spacer", Static)
 
     def update_watcher(self, is_running: bool) -> None:
         """Update the watcher status indicator."""

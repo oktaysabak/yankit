@@ -75,7 +75,7 @@ class InlineQuitScreen(ModalScreen[bool]):
 
     def compose(self) -> ComposeResult:
         yield Static(
-            "Quit Yankit? Yes(y)/No(n)  │  (Watcher stays active. Use 'yankit stop' to stop)",
+            "Quit Yankit? Yes(y)/No(n)",
             id="quit-prompt",
         )
 

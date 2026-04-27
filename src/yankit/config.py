@@ -36,9 +36,14 @@ class ConfigManager:
 
             # Merge with defaults to ensure all keys exist
             defaults = self._default_config()
+            updated = False
             for k, v in defaults.items():
                 if k not in data:
                     data[k] = v
+                    updated = True
+
+            if updated:
+                self._save(data)
             return data
         except Exception:
             return self._default_config()

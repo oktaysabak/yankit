@@ -150,7 +150,7 @@ wheels = [
 
 [[package]]
 name = "yankit"
-version = "0.3.7"
+version = "0.3.9"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
