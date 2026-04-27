@@ -4,7 +4,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
-from textual.widgets import Footer, Header, Input
+from textual.widgets import DataTable, Footer, Header, Input
 
 from yankit.clipboard import set_clipboard
 from yankit.config import config
@@ -37,6 +37,8 @@ class YankitApp(App):
         Binding("s", "search", "Search"),
         Binding("escape", "back", "Back"),
         Binding("r", "refresh", "Refresh"),
+        Binding("tab", "none", show=False),
+        Binding("shift+tab", "none", show=False),
     ]
 
     # Reactive state
@@ -57,8 +59,7 @@ class YankitApp(App):
             yield DetailPanel()
         yield StatusBar(
             initial_text=(
-                "↑↓ Navigate  │  c Copy  │  Enter/→ Detail  │  d Delete  │  "
-                "s Search  │  q Quit"
+                "↑↓ Navigate  │  c Copy  │  Enter/→ Detail  │  d Delete  │  s Search  │  q Quit"
             )
         )
         yield Footer()
@@ -184,6 +185,21 @@ class YankitApp(App):
                 status.update(text)
         except Exception:
             pass
+
+    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        """Update detail panel when a row is highlighted if the panel is open."""
+        try:
+            detail = self.query_one(DetailPanel)
+            if detail.is_visible:
+                entry = self._get_selected_entry()
+                if entry:
+                    detail.show_entry(entry)
+        except Exception:
+            pass
+
+    def action_none(self) -> None:
+        """Do nothing for disabled keys."""
+        pass
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Handle search input changes."""
