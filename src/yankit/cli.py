@@ -25,7 +25,7 @@ def cli(ctx):
     Track, search, and manage everything you copy.
 
     If run without any commands, yankit will open the interactive
-    Terminal User Interface (TUI). If the watcher is not running, 
+    Terminal User Interface (TUI). If the watcher is not running,
     the TUI will start it automatically in the background.
 
     Use 'yankit stop' to terminate the background watcher.
@@ -82,8 +82,6 @@ def status():
         console.print(f"\n  [green]●[/] Watcher is [bold green]running[/] (PID: {pid})\n")
     else:
         console.print("\n  [dim]○[/] Watcher is [bold]not running[/]\n")
-
-
 
 
 @cli.command()

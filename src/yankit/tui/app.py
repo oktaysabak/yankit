@@ -145,7 +145,11 @@ class YankitApp(App):
         else:
             notification.remove_class("visible")
 
-        if not is_running and config.auto_start_watcher and not getattr(self, "_watcher_autostart_attempted", False):
+        if (
+            not is_running
+            and config.auto_start_watcher
+            and not getattr(self, "_watcher_autostart_attempted", False)
+        ):
             self._watcher_autostart_attempted = True
             try:
                 # Attempt to start the watcher in background once
@@ -182,7 +186,6 @@ class YankitApp(App):
         db_latest_id = db.get_latest_id()
         if db_latest_id == 0:
             return
-
 
         if not self.entries or db_latest_id > self.entries[0]["id"]:
             # Auto-refresh and maintain live feed

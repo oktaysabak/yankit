@@ -4,9 +4,9 @@ import contextlib
 import hashlib
 import os
 import sqlite3
+from collections.abc import Generator
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Generator
 
 
 class ClipboardDB:
