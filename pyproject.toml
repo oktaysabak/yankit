@@ -1,6 +1,6 @@
 [project]
 name = "yankit"
-version = "0.3.1"
+version = "0.3.5"
 description = "A clipboard history manager for your terminal. Track, search, and manage everything you copy."
 readme = "README.md"
 license = "MIT"

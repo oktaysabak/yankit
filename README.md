@@ -12,6 +12,7 @@
 ## Features
 
 - **Interactive TUI** — Browse, search, and copy entries with keyboard navigation
+- **Partial Selection** — Select and copy specific parts of text in the detail view
 - **Watch** — Monitor your clipboard in real-time (foreground or daemon mode)
 - **List** — View your clipboard history with timestamps and word counts
 - **Search** — Find anything you've copied with highlighted results
@@ -72,10 +73,13 @@ yankit list
 
 | Key | Action |
 |-----|--------|
-| `↑` / `↓` | Navigate between entries |
-| `c` | Copy highlighted entry to clipboard |
-| `Enter` / `→` | Open detail panel (full content, scrollable) |
-| `←` / `Escape` | Close detail panel / search |
+| `↑` / `↓` | Navigate between entries / scroll text |
+| `c` | Copy highlighted entry (or selection if in detail view) |
+| `Enter` / `→` | Open detail panel / Focus content |
+| `←` / `Escape` | Return to list / Close search |
+| `TAB` / `Shift+TAB` | Cycle focus between Search, List, and Detail |
+| `Enter` / `↓` | Jump to results (when in search) |
+| `Alt` + `←` / `→` | Switch focus directly between List and Detail |
 | `s` | Open search |
 | `d` | Delete highlighted entry |
 | `r` | Refresh entries |

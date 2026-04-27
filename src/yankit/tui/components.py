@@ -3,7 +3,9 @@
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
-from textual.widgets import DataTable, RichLog, Static
+from textual.widgets import DataTable, Static, TextArea
+
+from yankit.db import db
 
 
 class EntryTable(DataTable):
@@ -13,7 +15,6 @@ class EntryTable(DataTable):
         Binding("c", "copy_entry", "Copy"),
         Binding("enter", "show_detail", "Detail"),
         Binding("right", "show_detail", "Detail →", show=False),
-        Binding("left", "hide_detail", "← Back"),
         Binding("d", "delete_entry", "Delete"),
     ]
 
@@ -30,19 +31,56 @@ class EntryTable(DataTable):
         self.app.action_delete_entry()
 
 
-class DetailLog(RichLog):
-    """RichLog for the detail panel that captures specific keys when focused."""
+class DetailLog(TextArea):
+    """TextArea for the detail panel that supports text selection and partial copying."""
 
     BINDINGS = [
-        Binding("left", "hide_detail", "← Back"),
-        Binding("c", "copy_entry", "Copy"),
+        Binding("c", "copy_selection", "Copy"),
+        Binding("ctrl+left", "focus_list", show=False, priority=True),
+        Binding("alt+left", "focus_list", show=False, priority=True),
+        Binding("ctrl+right", "focus_detail", show=False, priority=True),
+        Binding("alt+right", "focus_detail", show=False, priority=True),
     ]
+
+    def on_key(self, event) -> None:
+        """Handle specific navigation keys in the detail view."""
+        if event.key == "left" and self.cursor_location == (0, 0) and not self.selected_text:
+            self.app.action_focus_list()
+            event.prevent_default()
+
+    def action_focus_list(self) -> None:
+        """Delegate to app action."""
+        self.app.action_focus_list()
+
+    def action_focus_detail(self) -> None:
+        """Delegate to app action (keeps focus here)."""
+        self.app.action_focus_detail()
 
     def action_hide_detail(self) -> None:
         self.app.action_hide_detail()
 
-    def action_copy_entry(self) -> None:
-        self.app.action_copy_entry()
+    def action_copy_selection(self) -> None:
+        """Copy the selected text, or the whole entry if nothing is selected."""
+        if self.selected_text:
+            content = self.selected_text
+            label = "selection"
+        else:
+            content = self.text
+            label = "entry"
+
+        if not content:
+            return
+
+        from yankit.clipboard import set_clipboard
+
+        if set_clipboard(content):
+            db.add_entry(content)  # Track the partial copy as a new entry!
+            # Show a brief preview in status bar
+            preview = content[:30].replace("\n", " ").replace("\r", "")
+            self.app._show_status(f"✓ Copied {label}: {preview}...", "green bold")
+            self.app.notify(f"Copied {label} to clipboard!", title="Success")
+        else:
+            self.app._show_status(f"✗ Failed to copy {label}", "red bold")
 
 
 class StatusBar(Horizontal):
@@ -79,8 +117,15 @@ class StatusBar(Horizontal):
         self._initial_text = initial_text
 
     def compose(self) -> ComposeResult:
-        yield Static(self._initial_text, id="status-text")
-        yield Static("", id="capacity-text")
+        status_text = Static(self._initial_text, id="status-text")
+        capacity_text = Static("", id="capacity-text")
+        # Explicitly disable focus for status bar components
+        status_text.can_focus = False
+        capacity_text.can_focus = False
+        self.can_focus = False
+
+        yield status_text
+        yield capacity_text
 
     def update(self, text: str) -> None:
         """Update the main status text."""
@@ -140,8 +185,10 @@ class DetailPanel(Vertical):
 
     def compose(self) -> ComposeResult:
         yield Static("Entry Details", id="detail-header")
-        log = DetailLog(id="detail-content", wrap=True, highlight=True, markup=True)
+        log = DetailLog(id="detail-content")
         log.can_focus = True
+        log.read_only = True
+        log.show_line_numbers = False
         yield log
 
     def show_entry(self, entry: dict) -> None:
@@ -152,8 +199,7 @@ class DetailPanel(Vertical):
         )
 
         log = self.query_one("#detail-content", DetailLog)
-        log.clear()
-        log.write(entry["content"])
+        log.text = entry["content"]
 
         self.add_class("visible")
 

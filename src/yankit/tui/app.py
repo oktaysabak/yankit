@@ -37,8 +37,10 @@ class YankitApp(App):
         Binding("s", "search", "Search"),
         Binding("escape", "back", "Back"),
         Binding("r", "refresh", "Refresh"),
-        Binding("tab", "none", show=False),
-        Binding("shift+tab", "none", show=False),
+        Binding("ctrl+right", "focus_detail", "Focus Detail", show=False, priority=True),
+        Binding("ctrl+left", "focus_list", "Focus List", show=False, priority=True),
+        Binding("alt+right", "focus_detail", show=False, priority=True),
+        Binding("alt+left", "focus_list", show=False, priority=True),
     ]
 
     # Reactive state
@@ -64,6 +66,15 @@ class YankitApp(App):
         )
         yield Footer()
 
+    def on_key(self, event) -> None:
+        """Global key handler for specific focus transitions."""
+        # If Down arrow is pressed in search input, jump to results table
+        if event.key == "down":
+            search_input = self.query_one("#search-input", Input)
+            if search_input.has_focus:
+                self.query_one("#entry-table", EntryTable).focus()
+                event.prevent_default()
+
     def on_mount(self) -> None:
         """Set up the table and load initial data."""
         table = self.query_one("#entry-table", EntryTable)
@@ -72,6 +83,10 @@ class YankitApp(App):
         table.add_column("Chars", width=8, key="chars")
         table.add_column("Words", width=8, key="words")
         table.add_column("Time", width=20, key="time")
+
+        # Ensure decorative widgets don't take focus to keep focus cycle clean
+        self.query_one(Header).can_focus = False
+        self.query_one(Footer).can_focus = False
 
         if self._initial_query:
             self.current_query = self._initial_query
@@ -94,7 +109,11 @@ class YankitApp(App):
 
         detail = self.query_one(DetailPanel)
         if getattr(detail, "is_visible", False):
+            # Skip auto-refresh while viewing details to avoid jarring jumps
             return
+
+        # skip if a screen is on top (like delete/quit)
+        pass
 
         latest = db.get_entries(limit=1)
         if not latest:
@@ -197,15 +216,40 @@ class YankitApp(App):
         except Exception:
             pass
 
-    def action_none(self) -> None:
-        """Do nothing for disabled keys."""
-        pass
+    def action_focus_detail(self) -> None:
+        """Switch focus to the detail panel log, opening it if necessary."""
+        detail = self.query_one(DetailPanel)
+        if not detail.is_visible:
+            entry = self._get_selected_entry()
+            if entry:
+                detail.show_entry(entry)
+            else:
+                self._show_status("No entry to show.", "yellow")
+                return
+
+        from yankit.tui.components import DetailLog
+
+        log = detail.query_one("#detail-content", DetailLog)
+        log.focus()
+        self._show_status("Focused Detail. Use arrow keys to scroll/select.", "cyan")
+
+    def action_focus_list(self) -> None:
+        """Switch focus back to the entries table."""
+        self.query_one("#entry-table", EntryTable).focus()
+        self.action_refresh()
+        self._show_status("Focused List. ↑↓ to navigate.", "cyan")
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Handle search input changes."""
         if event.input.id == "search-input":
             self.current_query = event.value
             self._load_search_results(event.value)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle Enter key in search input to jump to results."""
+        if event.input.id == "search-input":
+            self.query_one("#entry-table", EntryTable).focus()
+            self._show_status("Focused List. ↑↓ to navigate.", "cyan")
 
     def action_search(self) -> None:
         """Toggle the search bar."""
@@ -229,6 +273,7 @@ class YankitApp(App):
         detail = self.query_one(DetailPanel)
         if detail.is_visible:
             detail.hide_panel()
+            self.action_refresh()  # Refresh to show any new copies made in detail
             self.query_one("#entry-table", EntryTable).focus()
             return
 
@@ -262,6 +307,7 @@ class YankitApp(App):
             return
 
         if set_clipboard(entry["content"]):
+            db.add_entry(entry["content"])  # Track it (moves to top if exists)
             preview = self._truncate(entry["content"], 40)
             self._show_status(f"✓ Copied #{entry['id']}: {preview}", "green bold")
             self.notify(
@@ -300,11 +346,13 @@ class YankitApp(App):
             log = detail.query_one("#detail-content", DetailLog)
             if log.has_focus:
                 self.query_one("#entry-table", EntryTable).focus()
+                self.action_refresh()
                 self._show_status(
                     "↑↓ Navigate  │  c Copy  │  Enter/→ Detail  │  d Delete  │  s Search  │  q Quit"
                 )
             else:
                 detail.hide_panel()
+                self.action_refresh()  # Refresh to show any new copies made in detail
                 self.query_one("#entry-table", EntryTable).focus()
 
     def action_delete_entry(self) -> None:
